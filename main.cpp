@@ -4,21 +4,91 @@
 
 #include <cstdio>
 #include <cmath>
+#include <nag.h>
+#include <nagg01.h>
+#include <nagd01.h>
+
 #include "myrand.h"
 
 
 #define NSUM 100000
+
+#define MAXMU (1.0)
+#define MAXSIG (NSUM)
+#define MINSIG (10.0)
+
+
+typedef struct{
+  double mu_mu;
+  double mu_sigma;
+  double sigma_mu;
+  double sigma_sigma;
+  std::vector<double>* xs;
+}hypothesis_and_data_t;
+
+
+extern "C" double likelihood(double mu,double sigma,Nag_Comm* dat);
+extern "C" double prior(double mu,double sigma,Nag_Comm* dat);
+extern "C" double unnormalized_posterior(double mu,double sigma,Nag_Comm* dat);
+extern "C" double phi1(double y,Nag_Comm* dat){return -10.0;};
+extern "C" double phi2(double y,Nag_Comm* dat){return  10.0;};
+
 
 
 std::vector<double> sum_errors(int nsamples);
 
 int main(int argc,char** argv){
 
+  /*Generate errors*/
   auto errs = sum_errors(200);
 
-  for(auto e : errs){
-    std::cout<< std::scientific << std::setprecision(15) << e <<std::endl;
+  hypothesis_and_data_t d;
+  d.mu_mu=0.0;
+  d.mu_sigma=10.0;
+  d.sigma_mu=10.0;
+  d.sigma_sigma=NSUM;
+  d.xs = &errs;
+  Nag_Comm dat; 
+  dat.p=(void*)(&d);
+
+
+  NagError err;
+  INIT_FAIL(err);
+  double norm=0.0;
+  double absacc=1e-14;
+  Integer npts;
+  nag_quad_2d_fin(0.001,20.0,phi1,phi2,unnormalized_posterior,absacc,&norm,&npts,&dat,&err);
+
+
+  int musamples=1024;
+  int sigmasamples=1024;
+  std::vector<double> outimage;
+  double map_m=-1000.0;
+  double map_s=-1000.0;
+  double max=-1000.0;
+  for(int i=0;i<musamples;i++){
+    for(int j=0;j<sigmasamples;j++){
+      double m=-MAXMU + (double(i)/double(musamples))*(2*MAXMU);
+      double s= MINSIG +  (double(j)/double(sigmasamples))*(MAXSIG-MINSIG);
+      double post=unnormalized_posterior(m,s,&dat)/norm;
+      outimage.push_back(
+            MAX(post,1e-6)
+          );
+      if(MAX(post,max)==post){
+        max=post;
+        map_m=m;
+        map_s=s;
+      }
+    }
   }
+  std::cout<<"map_m = "<<map_m<<std::endl;
+  std::cout<<"map_s = "<<map_s<<std::endl;
+
+
+
+
+
+
   return 0;
 }
 
@@ -111,8 +181,30 @@ std::vector<double> sum_errors(int nsamples){
   delete [] state;
   return out;
 
+}
+
+extern "C" double likelihood(double mu,double sigma,Nag_Comm* dat){
+  hypothesis_and_data_t* _dat=(hypothesis_and_data_t*)(dat->p);
+  std::vector<double>xs = *((std::vector<double>*) (_dat->xs));
+  NagError err;
+  INIT_FAIL(err);
+  double out=1.0;
+  for(auto x : xs){
+    out=out*nag_normal_pdf(x,mu,sigma,&err);
+  }
+  return out;
+}
+
+extern "C" double prior(double mu,double sigma,Nag_Comm* dat){
+  hypothesis_and_data_t* _dat=(hypothesis_and_data_t*)(dat->p);
+  NagError err;
+  INIT_FAIL(err);
+  double Pmu=nag_normal_pdf(mu,_dat->mu_mu,_dat->mu_sigma,&err);
+  double Psig=nag_normal_pdf(sigma,_dat->sigma_mu,_dat->sigma_sigma,&err);
+  return Pmu*Psig;
+}
 
 
-
-
+extern "C" double unnormalized_posterior(double mu,double sigma,Nag_Comm* dat){
+  return likelihood(mu,sigma,dat)*prior(mu,sigma,dat);
 }
