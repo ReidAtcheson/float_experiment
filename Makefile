@@ -1,7 +1,7 @@
 
 CXX := icpc
 INCLUDE := -I $(NAG_ROOT)/include 
-CFLAGS := -O0 --std=c++11 $(INCLUDE)
+CFLAGS := -O0 --std=c++11 $(INCLUDE) -qopenmp
 LDFLAGS := -L $(NAG_ROOT)/lib -lnagc_mkl 
 
 main : main.cpp myrand.o
