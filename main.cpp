@@ -63,6 +63,28 @@ std::vector<double> sum_errors(int nsamples){
   std::vector<double> out(nsamples);
   double* outd = &out[0];
   double* xsd = &xs[0];
+
+  std::vector<float> xf(NSUM);
+  std::vector<double> xd(NSUM);
+  for(Integer i=0;i<NSUM;i++){
+    xf[i]=float(xsd[i]);
+    xd[i]=double(float(xsd[i]));
+  }
+
+
+  /*Do Kahan summation in doubles.*/
+  double tmpd=0.0;
+  double c=0.0;
+  for(Integer i=0;i<NSUM;i++){
+    double y=xd[i]-c;
+    double t=tmpd+y;
+    c=(t-tmpd)-y;
+    tmpd=t;
+  }
+
+
+
+
 #pragma omp parallel
   {
 
@@ -71,12 +93,6 @@ std::vector<double> sum_errors(int nsamples){
   int lnsamples = nsamples/(nthreads);
   int final_nsamples=nsamples%nthreads;
 
-  std::vector<float> xf(NSUM);
-  std::vector<double> xd(NSUM);
-  for(Integer i=0;i<NSUM;i++){
-    xf[i]=float(xsd[i]);
-    xd[i]=double(float(xsd[i]));
-  }
 
 
   /* Integer scalar and array declarations */
@@ -156,12 +172,13 @@ std::vector<double> sum_errors(int nsamples){
     }
 
     if(j>=beg && j<end){
+      /*Do naive sumation in floats.*/
   float tmpf=0.0;
-  double tmpd=0.0;
   for(Integer i=0;i<n;i++){
     tmpf += xf[index[i]];
-    tmpd += xd[index[i]];
   }
+
+
   relerr = ((double(tmpf)-tmpd)/tmpd)/1e-6;
   outd[j]=relerr;
   }}
