@@ -1,0 +1,41 @@
+
+
+.PHONY : clean
+
+
+
+all : hist1.svg hist10.svg hist100.svg hist1000.svg hist10000.svg hist100000.svg  hist1000000.svg  
+
+
+
+hist1.svg : errs_1.dat
+	python3.6 error_hist.py errs_1.dat hist1.svg
+
+hist10.svg : errs_10.dat
+	python3.6 error_hist.py errs_10.dat hist10.svg
+
+hist100.svg : errs_100.dat
+	python3.6 error_hist.py errs_100.dat hist100.svg
+
+hist1000.svg : errs_1000.dat
+	python3.6 error_hist.py errs_1000.dat hist1000.svg
+
+hist10000.svg : errs_10000.dat
+	python3.6 error_hist.py errs_10000.dat hist10000.svg
+
+hist100000.svg : errs_100000.dat
+	python3.6 error_hist.py errs_100000.dat hist100000.svg
+
+hist1000000.svg : errs_1000000.dat
+	python3.6 error_hist.py errs_1000000.dat hist1000000.svg
+
+
+
+
+
+
+
+
+clean :
+	rm -rf ./*.pdf
+	rm -rf ./*.svg

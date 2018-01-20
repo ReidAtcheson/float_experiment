@@ -1,15 +1,20 @@
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <sstream>
+#include <fstream>
+
 
 
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
+#include <cassert>
 #include <nag.h>
 #include <nagg01.h>
 #include <nagd01.h>
 #include <nagg05.h>
+#include <nagg08.h>
 #include <omp.h>
 
 #include "myrand.h"
@@ -48,8 +53,31 @@ int main(int argc,char** argv){
   INIT_FAIL(fail);
   nag_summary_stats_onevar(nb, &errs[0], NULL,&pn, &xmean, &xsd, &xskew, &xkurt, &xmin, &xmax, NULL, &fail);
 
+  INIT_FAIL(fail);
+  Nag_Boolean issort;
+  issort = Nag_FALSE;
+  double a2, aa2, p, ybar, yvar;
+  nag_anderson_darling_normal_prob(nb, issort, (const double *) (&errs[0]), &ybar,
+                                   &yvar, &a2, &aa2, &p, &fail);
 
-  printf("mean = %lf, std = %lf\n",xmean,xsd);
+  double min=xmin;
+  double max=xmax;
+
+
+  printf("mean = %lf, std = %lf, min=%lf,max=%lf,Asquared = %lf,Adj-Asquared = %lf, Upper tail probability = %lf\n",xmean,xsd,min,max,yvar,aa2,p);
+
+  std::stringstream fname;
+  fname << "errs_" << nb << ".dat";
+  std::ofstream f;
+  f.open(fname.str().c_str(),std::ios::out|std::ios::binary);
+  f.write( (const char*)(&errs[0]), nb*sizeof(double) );
+  f.close();
+  
+
+
+
+
+
   return 0;
 }
 
